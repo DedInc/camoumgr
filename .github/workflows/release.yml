@@ -40,14 +40,14 @@ jobs:
         run: |
           mkdir -p dist
           # Adjust this to your real entrypoint:
-          pyinstaller --onefile your_script.py
+          pyinstaller --onefile cmngr.py
         shell: bash
 
       - name: (Optional) Compress binary with UPX on Linux
         if: matrix.os == 'ubuntu-latest'
         run: |
-          if [ -f "dist/your_script" ]; then
-            upx --best dist/your_script
+          if [ -f "dist/cmngr" ]; then
+            upx --best dist/cmngr
           fi
         shell: bash
 
@@ -55,11 +55,11 @@ jobs:
         run: |
           mkdir -p artifacts
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            cp dist/your_script.exe artifacts/your_script_windows.exe
+            cp dist/cmngr.exe artifacts/cmngr_windows.exe
           elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            cp dist/your_script artifacts/your_script_macos
+            cp dist/cmngr artifacts/cmngr_macos
           else
-            cp dist/your_script artifacts/your_script_linux
+            cp dist/cmngr artifacts/cmngr_linux
           fi
         shell: bash
 
