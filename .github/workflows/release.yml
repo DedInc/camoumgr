@@ -24,15 +24,28 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller upx-python
+          pip install pyinstaller
+
+      # Optional: Install UPX on Ubuntu only (Linux compression)
+      - name: Install UPX (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y upx
 
       - name: Build with PyInstaller
         run: |
           mkdir -p dist
+          # Adjust this to your real entrypoint:
           pyinstaller --onefile your_script.py
+        shell: bash
+
+      - name: (Optional) Compress binary with UPX on Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: |
           if [ -f "dist/your_script" ]; then
             upx --best dist/your_script
           fi
@@ -48,6 +61,7 @@ jobs:
           else
             cp dist/your_script artifacts/your_script_linux
           fi
+        shell: bash
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -68,4 +82,4 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event.inputs.release_tag }}
-          files: artifacts/*
+          files: artifacts/**
