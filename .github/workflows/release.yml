@@ -1,59 +1,43 @@
-name: Build & Release (PyInstaller + UPX)
+name: Build & Release
 
 on:
   push:
     tags:
-      - 'v*'            # триггер: пуш тега вида v1.0.0
+      - "v*"
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }}
+    name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+
     strategy:
-      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: [3.11]
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ matrix.python-version }}-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            pip-${{ matrix.python-version }}-${{ runner.os }}-
-
-      - name: Install dependencies
+      - name: Install deps
         run: |
-          python -m pip install --upgrade pip wheel
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pyinstaller
-        shell: bash
+          pip install --upgrade pip
+          pip install pyinstaller rich camoufox
 
-      # --- Install UPX per-OS ---
       - name: Install UPX (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          # try recommended package; some images provide upx or upx-ucl
-          sudo apt-get install -y upx-ucl || sudo apt-get install -y upx || true
-        shell: bash
+          sudo apt-get install -y upx
 
       - name: Install UPX (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew update || true
-          brew install upx || true
-        shell: bash
+          brew install upx
 
       - name: Install UPX (Windows)
         if: runner.os == 'Windows'
@@ -61,72 +45,85 @@ jobs:
           choco install upx -y
         shell: powershell
 
-      # --- Build with PyInstaller ---
-      - name: Build with PyInstaller
+      # ------------------------------
+      #         BUILD
+      # ------------------------------
+
+      - name: Build Executable
         run: |
-          # очистка старых артефактов
-          rm -rf build dist release || true
-          mkdir -p release || true
-
-          # Пример команды. Подставьте свой главный файл и опции.
-          # --onefile -> единый исполняемый
-          # --noconfirm -> перезаписывать без запроса
-          # --log-level=WARN -> меньше шума
-          pyinstaller --clean --noconfirm --onefile --log-level=WARN --name cmngr cmngr.py
-
-          # Если нужно включить дополнительные файлы, пример:
-          # pyinstaller --onefile --add-data "profiles.json:." cmngr.py
-
-          # Доп. линуксовая оптимизация: strip (если доступна)
-          if command -v strip >/dev/null 2>&1; then
-            strip dist/cmngr || true
-          fi
-
-          # Убедимся что UPX есть и запустим сильную компрессию
-          if command -v upx >/dev/null 2>&1; then
-            # Универсальный шаблон: обработаем все файлы в dist
-            for f in dist/*; do
-              upx --best --lzma "$f" || true
-            done
-          fi
-
-          # Упакуем в zip (команда отличается на Windows / *nix)
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ] || [ "${{ matrix.os }}" = "macos-latest" ]; then
-            zip -j release/cmngr-${{ matrix.os }}.zip dist/* || true
-          fi
+          pyinstaller --clean --noconfirm --onefile cmngr.py
         shell: bash
 
-      - name: Package (Windows)
+      # ------------------------------
+      #         PACK WITH UPX
+      # ------------------------------
+
+      - name: UPX Compress (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if command -v upx >/dev/null 2>&1; then
+            upx --best --lzma dist/cmngr || true
+          fi
+
+      - name: UPX Compress (Windows, force)
         if: runner.os == 'Windows'
         run: |
-          New-Item -ItemType Directory -Force -Path release | Out-Null
-          Copy-Item -Path dist\cmngr.exe -Destination release\
-          # run upx explicitly (if wasn't run earlier)
           if (Get-Command upx -ErrorAction SilentlyContinue) {
-            & upx --best --lzma release\cmngr.exe
+            & upx --force --best --lzma dist\cmngr.exe
           }
-          Compress-Archive -Path release\* -DestinationPath release\cmngr-windows.zip -Force
         shell: powershell
 
-      - name: Upload build artifact
+      # ------------------------------
+      #         PACKAGE ARTIFACT
+      # ------------------------------
+
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        run: |
+          tar -czvf cmngr-linux.tar.gz -C dist cmngr
+
+      - name: Package macOS
+        if: runner.os == 'macOS'
+        run: |
+          tar -czvf cmngr-macos.tar.gz -C dist cmngr
+
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        run: |
+          Compress-Archive -Path dist\cmngr.exe -DestinationPath cmngr-windows.zip -Force
+        shell: powershell
+
+      # ------------------------------
+      #         UPLOAD ARTIFACTS
+      # ------------------------------
+
+      - name: Upload packaged artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cmngr-${{ matrix.os }}
-          path: release/*.zip
+          name: ${{ runner.os }}-build
+          path: |
+            *.zip
+            *.tar.gz
+
+  # ------------------------------
+  #         CREATE RELEASE
+  # ------------------------------
 
   release:
-    name: Create GitHub Release and attach artifacts
-    runs-on: ubuntu-latest
+    name: Publish Release
     needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Create GitHub Release and upload artifacts
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: artifacts/**/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: artifacts/**
+        if: startsWith(github.ref, 'refs/tags/')
