@@ -47,19 +47,6 @@ async def run_browser(profile_name, proxy_str, os_type):
             else:
                 page = await context.new_page()
             
-            # Get screen size for launch args
-            try:
-                import tkinter as tk
-                root = tk.Tk()
-                root.withdraw()
-                # screen_w = root.winfo_screenwidth()
-                # screen_h = root.winfo_screenheight()
-                root.destroy()
-                
-                root.destroy()
-            except Exception as e:
-                print(f"Screen size error: {e}", flush=True)
-            
             # Create an event to wait for closure
             close_event = asyncio.Event()
 
