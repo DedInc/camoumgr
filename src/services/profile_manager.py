@@ -31,10 +31,38 @@ class ProfileManager:
             json.dump({name: p.to_dict() for name, p in self.profiles.items()}, f, indent=4)
 
     def add_profile(self, name: str, proxy: str, os_type: str):
-        if name in self.profiles: return False
+        if name in self.profiles:
+            return False
         self.profiles[name] = Profile(name=name, proxy=proxy if proxy else None, os_type=os_type)
         self.save_profiles()
         os.makedirs(os.path.join(DATA_DIR, name), exist_ok=True)
+        return True
+
+    def update_profile(self, original_name: str, new_name: str, new_proxy: str, new_os: str):
+        if original_name not in self.profiles:
+            return False
+        
+        # If renaming, check if new name exists
+        if new_name != original_name and new_name in self.profiles:
+            return False
+
+        # Update data
+        profile = self.profiles[original_name]
+        profile.name = new_name
+        profile.proxy = new_proxy if new_proxy else None
+        profile.os_type = new_os
+        
+        # Handle rename in dictionary and filesystem
+        if new_name != original_name:
+            del self.profiles[original_name]
+            self.profiles[new_name] = profile
+            
+            old_dir = os.path.join(DATA_DIR, original_name)
+            new_dir = os.path.join(DATA_DIR, new_name)
+            if os.path.exists(old_dir):
+                os.rename(old_dir, new_dir)
+        
+        self.save_profiles()
         return True
 
     def delete_profile(self, name: str):

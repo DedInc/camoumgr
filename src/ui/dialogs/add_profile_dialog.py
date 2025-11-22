@@ -9,14 +9,16 @@ class AddProfileDialog(ctk.CTkToplevel):
         self.geometry("400x480")
         self.resizable(False, False)
         self.configure(fg_color=COLORS["bg"])
+        self.attributes("-topmost", True)
         
         # Center window
         self.update_idletasks()
-        width = self.winfo_width()
-        height = self.winfo_height()
+        width = 400
+        height = 480
         x = (self.winfo_screenwidth() // 2) - (width // 2)
         y = (self.winfo_screenheight() // 2) - (height // 2)
-        self.geometry(f'+{x}+{y}')
+        self.geometry(f'{width}x{height}+{x}+{y}')
+        self.focus_force()
         
         self.grid_columnconfigure(0, weight=1)
         

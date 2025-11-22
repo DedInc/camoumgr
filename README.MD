@@ -7,7 +7,7 @@
 - **Profile Management**: Create, delete, and organize multiple browser profiles effortlessly.
 - **Custom Configurations**: 
   - **Proxies**: Support for HTTP/HTTPS/SOCKS proxies with authentication.
-  - **OS Fingerprinting**: Spoof different operating systems (Windows, MacOS, Linux, Android, iOS) per profile.
+  - **OS Fingerprinting**: Spoof different operating systems (Windows, MacOS, Linux) per profile.
 - **Persistent Sessions**: Browser state (cookies, local storage) is automatically saved and restored for each profile, ensuring continuity.
 - **Modern UI**: A polished, dark-themed interface featuring:
   - Responsive layout
@@ -57,9 +57,14 @@
    - Find the profile card in the main view.
    - Click the **"Launch"** button (rocket icon).
    - The Camoufox browser will open with the configured settings.
-   - **Note**: Closing the browser window will automatically save your session data.
+   - **Note**: You can close the browser manually or click the **"CLOSE"** button (red) on the profile card to gracefully shut it down.
 
-4. **Managing Profiles**
+4. **Editing a Profile**
+   - Click the **Edit** button (pencil icon) on a profile card.
+   - You can modify the profile name, proxy, and OS type.
+   - Click **"Save Changes"** to apply.
+
+5. **Managing Profiles**
    - Use the **Delete** button (trash icon) on a profile card to remove it and its associated data.
    - Use the pagination controls at the bottom if you have many profiles.
 
