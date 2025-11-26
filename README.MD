@@ -46,10 +46,7 @@
    ```
 
 3. **(Optional) Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env to customize settings
-   ```
+ Edit .env to customize settings
 
 ## Usage
 
