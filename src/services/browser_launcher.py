@@ -2,36 +2,27 @@ import os
 import threading
 import subprocess
 import sys
-from typing import Optional, Dict
+from typing import Dict
+
 from ..models.profile import Profile
+from ..logging_config import get_logger
+
+logger = get_logger("browser_launcher")
+
 
 class BrowserLauncher:
-    @staticmethod
-    def parse_proxy(proxy_str: str) -> Optional[Dict]:
-        if not proxy_str:
-            return None
-        try:
-            if "://" not in proxy_str:
-                proxy_str = "http://" + proxy_str
-            from urllib.parse import urlparse
-            p = urlparse(proxy_str)
-            cfg = {"server": f"{p.scheme}://{p.hostname}:{p.port}"}
-            if p.username:
-                cfg["username"] = p.username
-            if p.password:
-                cfg["password"] = p.password
-            return cfg
-        except Exception:
-            return None
-
+    _lock = threading.Lock()
     active_sessions: Dict[str, subprocess.Popen] = {}
 
-    @staticmethod
-    def start_thread(profile: Profile, log_callback, on_start=None, on_ready=None, on_stop=None):
-        if profile.name in BrowserLauncher.active_sessions:
-            return
+    @classmethod
+    def start_thread(cls, profile: Profile, log_callback, on_start=None, on_ready=None, on_stop=None):
+        with cls._lock:
+            if profile.name in cls.active_sessions:
+                return
 
         log_callback(f"Starting {profile.name} ({profile.os_type})...")
+        logger.info(f"Starting browser for profile: {profile.name}")
+        
         if on_start:
             on_start()
 
@@ -42,14 +33,18 @@ class BrowserLauncher:
                     if on_ready:
                         on_ready()
                     log_callback("Browser started!")
+                    logger.info(f"Browser started for profile: {name}")
                 elif msg:
                     log_callback(f"[{name}] {msg}")
+                    logger.debug(f"[{name}] {msg}")
             
-            # Process ended
-            if name in BrowserLauncher.active_sessions:
-                del BrowserLauncher.active_sessions[name]
+            with cls._lock:
+                if name in cls.active_sessions:
+                    del cls.active_sessions[name]
             
             log_callback(f"Session ended: {name}")
+            logger.info(f"Session ended for profile: {name}")
+            
             if on_stop:
                 on_stop()
 
@@ -57,20 +52,28 @@ class BrowserLauncher:
             cmd = [sys.executable, "src/services/run_browser.py", profile.name, str(profile.proxy), profile.os_type]
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=os.getcwd())
             
-            BrowserLauncher.active_sessions[profile.name] = proc
+            with cls._lock:
+                cls.active_sessions[profile.name] = proc
             
-            # Start monitor thread
             threading.Thread(target=monitor_process, args=(proc, profile.name), daemon=True).start()
             
         except Exception as e:
+            logger.error(f"Error starting browser for {profile.name}: {e}")
             log_callback(f"Error starting process: {e}")
             if on_stop:
                 on_stop()
 
-    @staticmethod
-    def stop_profile(profile_name: str):
-        if profile_name in BrowserLauncher.active_sessions:
-            proc = BrowserLauncher.active_sessions[profile_name]
-            proc.terminate()
-            return True
+    @classmethod
+    def stop_profile(cls, profile_name: str) -> bool:
+        with cls._lock:
+            if profile_name in cls.active_sessions:
+                proc = cls.active_sessions[profile_name]
+                proc.terminate()
+                logger.info(f"Stopped browser for profile: {profile_name}")
+                return True
         return False
+    
+    @classmethod
+    def is_running(cls, profile_name: str) -> bool:
+        with cls._lock:
+            return profile_name in cls.active_sessions

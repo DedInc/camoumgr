@@ -1,8 +1,10 @@
 import customtkinter as ctk
 from ...config import COLORS
+from ...strings import get_string
 from ...models.profile import Profile
 from .os_badge import OSBadge
 from .status_pill import StatusPill
+
 
 class ProfileCard(ctk.CTkFrame):
     def __init__(self, parent, profile: Profile, launch_cb, delete_cb, edit_cb):
@@ -12,30 +14,26 @@ class ProfileCard(ctk.CTkFrame):
         self.delete_cb = delete_cb
         self.edit_cb = edit_cb
         
-        # Hover effects
         self.bind("<Enter>", self.on_enter)
         self.bind("<Leave>", self.on_leave)
         
         self.grid_columnconfigure(1, weight=1)
         
-        # OS Badge
         self.os_badge = OSBadge(self, profile.os_type)
         self.os_badge.grid(row=0, column=0, rowspan=2, padx=20, pady=20)
         
-        # Info
-        self.name_lbl = ctk.CTkLabel(self, text=profile.name, font=("Roboto", 18, "bold"), text_color=COLORS["text_main"])
+        self.name_lbl = ctk.CTkLabel(self, text=profile.name, font=("Roboto", 18, "bold"), 
+                                     text_color=COLORS["text_main"])
         self.name_lbl.grid(row=0, column=1, sticky="sw", padx=(0, 10), pady=(15, 2))
         self.name_lbl.bind("<Enter>", self.on_enter)
         self.name_lbl.bind("<Leave>", self.on_leave)
         
-        # Status Pill
         pill_color = COLORS["success"] if profile.proxy else COLORS["text_sub"]
-        pill_text = "PROXY ACTIVE" if profile.proxy else "DIRECT CONNECTION"
+        pill_text = get_string("proxy_active") if profile.proxy else get_string("direct_connection")
         self.status_pill = StatusPill(self, pill_text, pill_color)
         self.status_pill.grid(row=1, column=1, sticky="nw", padx=(0, 10), pady=(2, 15))
         
-        # Buttons
-        self.launch_btn = ctk.CTkButton(self, text="LAUNCH", width=90, height=36, 
+        self.launch_btn = ctk.CTkButton(self, text=get_string("launch"), width=90, height=36, 
                                         fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"],
                                         font=("Roboto Medium", 12), corner_radius=18,
                                         command=lambda: self.launch_cb(self.profile))
@@ -55,11 +53,13 @@ class ProfileCard(ctk.CTkFrame):
 
     def set_state(self, state):
         if state == "loading":
-            self.launch_btn.configure(text="LOADING...", state="disabled", fg_color=COLORS["text_sub"])
+            self.launch_btn.configure(text=get_string("loading"), state="disabled", fg_color=COLORS["text_sub"])
         elif state == "running":
-            self.launch_btn.configure(text="CLOSE", state="normal", fg_color=COLORS["error"], hover_color=COLORS["delete_hover"])
-        else: # idle
-            self.launch_btn.configure(text="LAUNCH", state="normal", fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"])
+            self.launch_btn.configure(text=get_string("close"), state="normal", fg_color=COLORS["error"], 
+                                     hover_color=COLORS["delete_hover"])
+        else:
+            self.launch_btn.configure(text=get_string("launch"), state="normal", fg_color=COLORS["accent"], 
+                                     hover_color=COLORS["accent_hover"])
 
     def on_enter(self, event):
         self.configure(fg_color=COLORS["card_hover"])

@@ -4,17 +4,26 @@
 
 ## Features
 
-- **Profile Management**: Create, delete, and organize multiple browser profiles effortlessly.
+- **Profile Management**: Create, edit, delete, and organize multiple browser profiles effortlessly.
 - **Custom Configurations**: 
   - **Proxies**: Support for HTTP/HTTPS/SOCKS proxies with authentication.
   - **OS Fingerprinting**: Spoof different operating systems (Windows, MacOS, Linux) per profile.
 - **Persistent Sessions**: Browser state (cookies, local storage) is automatically saved and restored for each profile, ensuring continuity.
+- **Profile Export/Import**: Backup and transfer profiles between machines as ZIP archives, including browser data.
+- **Proxy Validation**: 
+  - Format validation before saving.
+  - Live proxy connectivity check with real IP verification.
+- **Input Validation**: Profile names are validated for filesystem compatibility with clear error messages.
+- **Environment Configuration**: Customize paths and settings via `.env` file without modifying code.
+- **File Logging**: All activity is logged to daily log files in the `logs/` directory.
+- **Localization Ready**: All UI strings are centralized for easy translation.
+- **Thread-Safe Operations**: Browser sessions are managed with proper locking to prevent race conditions.
 - **Modern UI**: A polished, dark-themed interface featuring:
   - Responsive layout
   - Visual feedback and hover effects
-  - Activity logging
+  - Activity logging with expandable view
   - Pagination for profile lists
-- **Privacy Focused**: leverages Camoufox's anti-detect capabilities to protect your identity.
+- **Privacy Focused**: Leverages Camoufox's anti-detect capabilities to protect your identity.
 
 ## Installation
 
@@ -33,7 +42,13 @@
 
 2. **Install dependencies**
    ```bash
-   pip install customtkinter camoufox
+   pip install -r requirements.txt
+   ```
+
+3. **(Optional) Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env to customize settings
    ```
 
 ## Usage
@@ -45,32 +60,52 @@
    ```
 
 2. **Creating a Profile**
-   - Click the **"Add Profile"** button in the sidebar.
+   - Click the **"+ NEW PROFILE"** button in the sidebar.
    - Enter a unique **Profile Name**.
    - (Optional) Enter a **Proxy** string. Supported formats:
      - `http://user:pass@host:port`
+     - `socks5://user:pass@host:port`
      - `host:port` (assumes http)
+   - (Optional) Click **"Check Proxy"** to verify connectivity.
    - Select a target **Operating System** from the dropdown.
-   - Click **"Create"**.
+   - Click **"Create Profile"**.
 
 3. **Launching a Profile**
    - Find the profile card in the main view.
-   - Click the **"Launch"** button (rocket icon).
+   - Click the **"LAUNCH"** button.
    - The Camoufox browser will open with the configured settings.
-   - **Note**: You can close the browser manually or click the **"CLOSE"** button (red) on the profile card to gracefully shut it down.
+   - Click the **"CLOSE"** button (red) on the profile card to shut it down.
 
 4. **Editing a Profile**
-   - Click the **Edit** button (pencil icon) on a profile card.
-   - You can modify the profile name, proxy, and OS type.
+   - Click the **Edit** button (✎) on a profile card.
+   - Modify the profile name, proxy, or OS type.
    - Click **"Save Changes"** to apply.
 
-5. **Managing Profiles**
-   - Use the **Delete** button (trash icon) on a profile card to remove it and its associated data.
+5. **Export/Import Profiles**
+   - **Export**: Click "Export Profile" in the sidebar, select a profile, choose whether to include browser data, and select a destination folder.
+   - **Import**: Click "Import Profile" in the sidebar and select a `.zip` archive.
+
+6. **Managing Profiles**
+   - Use the **Delete** button (×) on a profile card to remove it and its associated data.
    - Use the pagination controls at the bottom if you have many profiles.
 
 ## Configuration
 
-You can customize the application theme and other settings in `src/config.py`. The application uses a "Premium Dark" color palette by default.
+### Environment Variables
+
+Create a `.env` file (copy from `.env.example`) to customize:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CAMOUMGR_PROFILES_FILE` | `profiles.json` | Profile storage file |
+| `CAMOUMGR_DATA_DIR` | `camoufox_data` | Browser data directory |
+| `CAMOUMGR_LOG_DIR` | `logs` | Log files directory |
+| `CAMOUMGR_LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
+| `CAMOUMGR_PROXY_TIMEOUT` | `10` | Proxy check timeout in seconds |
+
+### Theme Customization
+
+You can customize the application theme colors in `src/config.py`. The application uses a "Premium Dark" color palette by default.
 
 ## License
 

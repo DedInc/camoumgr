@@ -1,7 +1,9 @@
 import customtkinter as ctk
 from ...config import COLORS
+from ...strings import get_string
 from ...services.browser_launcher import BrowserLauncher
 from .profile_card import ProfileCard
+
 
 class ProfileList(ctk.CTkFrame):
     def __init__(self, master, profile_manager, on_launch, on_delete, on_edit, on_update_stats):
@@ -22,26 +24,27 @@ class ProfileList(ctk.CTkFrame):
         self.refresh_list()
         
     def _create_widgets(self):
-        # Header
-        ctk.CTkLabel(self, text="Your Profiles", font=("Roboto", 28, "bold"), text_color=COLORS["text_main"]).grid(row=0, column=0, sticky="w", pady=(0, 20))
+        ctk.CTkLabel(self, text=get_string("your_profiles"), font=("Roboto", 28, "bold"), 
+                     text_color=COLORS["text_main"]).grid(row=0, column=0, sticky="w", pady=(0, 20))
         
-        # Scrollable List
         self.scrollable_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scrollable_frame.grid(row=1, column=0, sticky="nsew")
         self.scrollable_frame.grid_columnconfigure(0, weight=1)
         
-        # Pagination Controls
         self.pagination_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.pagination_frame.grid(row=2, column=0, sticky="ew", pady=(10, 0))
         self.pagination_frame.grid_columnconfigure(1, weight=1)
         
-        self.prev_btn = ctk.CTkButton(self.pagination_frame, text="Previous", width=100, command=self.prev_page)
+        self.prev_btn = ctk.CTkButton(self.pagination_frame, text=get_string("previous"), width=100, 
+                                      command=self.prev_page)
         self.prev_btn.grid(row=0, column=0, sticky="w")
         
-        self.page_lbl = ctk.CTkLabel(self.pagination_frame, text="Page 1 of 1", font=("Roboto", 12))
+        self.page_lbl = ctk.CTkLabel(self.pagination_frame, text=get_string("page_of", current=1, total=1), 
+                                     font=("Roboto", 12))
         self.page_lbl.grid(row=0, column=1)
         
-        self.next_btn = ctk.CTkButton(self.pagination_frame, text="Next", width=100, command=self.next_page)
+        self.next_btn = ctk.CTkButton(self.pagination_frame, text=get_string("next"), width=100, 
+                                      command=self.next_page)
         self.next_btn.grid(row=0, column=2, sticky="e")
 
     def refresh_list(self):
@@ -50,7 +53,6 @@ class ProfileList(ctk.CTkFrame):
             
         all_profiles = self.pm.list_profiles()
         
-        # Clear existing
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
             
@@ -67,14 +69,16 @@ class ProfileList(ctk.CTkFrame):
         if not current_profiles:
             empty_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
             empty_frame.pack(pady=100)
-            ctk.CTkLabel(empty_frame, text="No profiles yet", font=("Roboto", 20, "bold"), text_color=COLORS["text_sub"]).pack()
-            ctk.CTkLabel(empty_frame, text="Create a new profile to get started", font=("Roboto", 14), text_color=COLORS["text_sub"]).pack(pady=5)
+            ctk.CTkLabel(empty_frame, text=get_string("no_profiles_yet"), font=("Roboto", 20, "bold"), 
+                         text_color=COLORS["text_sub"]).pack()
+            ctk.CTkLabel(empty_frame, text=get_string("create_profile_hint"), font=("Roboto", 14), 
+                         text_color=COLORS["text_sub"]).pack(pady=5)
         else:
             for p in current_profiles:
                 card = ProfileCard(self.scrollable_frame, p, self.on_launch, self.on_delete, self.on_edit)
                 card.pack(fill="x", pady=8)
                 
-                if p.name in BrowserLauncher.active_sessions:
+                if BrowserLauncher.is_running(p.name):
                     card.set_state("running")
                 
         self.update_pagination_controls(len(all_profiles))
@@ -84,7 +88,7 @@ class ProfileList(ctk.CTkFrame):
         if total_items == 0:
             total_pages = 1
         
-        self.page_lbl.configure(text=f"Page {self.current_page} of {total_pages}")
+        self.page_lbl.configure(text=get_string("page_of", current=self.current_page, total=total_pages))
         
         if self.current_page <= 1:
             self.prev_btn.configure(state="disabled")

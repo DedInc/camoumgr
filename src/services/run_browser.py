@@ -1,12 +1,13 @@
 import asyncio
 import sys
 import os
-from camoufox.async_api import AsyncCamoufox
 
-# Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from camoufox.async_api import AsyncCamoufox
 from src.config import DATA_DIR
+from src.utils.proxy_parser import parse_proxy
+
 
 async def run_browser(profile_name, proxy_str, os_type):
     profile_dir = os.path.join(os.getcwd(), DATA_DIR, profile_name)
@@ -21,20 +22,9 @@ async def run_browser(profile_name, proxy_str, os_type):
         "persistent_context": True,
     }
 
-    if proxy_str and proxy_str != "None":
-        try:
-            if "://" not in proxy_str:
-                proxy_str = "http://" + proxy_str
-            from urllib.parse import urlparse
-            p = urlparse(proxy_str)
-            cfg = {"server": f"{p.scheme}://{p.hostname}:{p.port}"}
-            if p.username:
-                cfg["username"] = p.username
-            if p.password:
-                cfg["password"] = p.password
-            launch_config["proxy"] = cfg
-        except Exception:
-            pass
+    proxy_config = parse_proxy(proxy_str)
+    if proxy_config:
+        launch_config["proxy"] = proxy_config
 
     print(f"Starting browser for {profile_name}...", flush=True)
     
@@ -47,7 +37,6 @@ async def run_browser(profile_name, proxy_str, os_type):
             else:
                 page = await context.new_page()
             
-            # Create an event to wait for closure
             close_event = asyncio.Event()
 
             def on_close():
@@ -56,13 +45,13 @@ async def run_browser(profile_name, proxy_str, os_type):
             context.on("close", on_close)
             page.on("close", on_close)
             
-            # Keep alive until terminated
             await close_event.wait() 
             
     except asyncio.CancelledError:
         pass
     except Exception as e:
         print(f"Error: {e}", flush=True)
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
