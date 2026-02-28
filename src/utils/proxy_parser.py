@@ -1,8 +1,7 @@
-from typing import Optional, Dict
 from urllib.parse import urlparse
 
 
-def parse_proxy(proxy_str: str) -> Optional[Dict]:
+def parse_proxy(proxy_str: str) -> dict | None:
     if not proxy_str or proxy_str == "None":
         return None
     try:

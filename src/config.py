@@ -1,8 +1,8 @@
 import os
-import customtkinter as ctk
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
@@ -14,22 +14,24 @@ LOG_LEVEL = os.getenv("CAMOUMGR_LOG_LEVEL", "INFO")
 PROXY_CHECK_TIMEOUT = int(os.getenv("CAMOUMGR_PROXY_TIMEOUT", "10"))
 
 
-def setup_theme():
-    ctk.set_appearance_mode("Dark")
-    ctk.set_default_color_theme("dark-blue")
-
-
 COLORS = {
-    "bg": "#121212",
-    "sidebar": "#1E1E1E",
-    "card_bg": "#252525",
-    "card_hover": "#2F2F2F",
-    "accent": "#7C4DFF",
-    "accent_hover": "#651FFF",
-    "text_main": "#FFFFFF",
-    "text_sub": "#B0B0B0",
-    "success": "#00E676",
-    "error": "#FF5252",
-    "delete_hover": "#FF1744",
-    "warning": "#FFD740",
+    "bg": "#0B0B14",
+    "sidebar": "#0F0F1A",
+    "card_bg": "#161628",
+    "card_hover": "#1E1E38",
+    "card_border": "#252548",
+    "accent": "#7C3AED",
+    "accent_hover": "#6D28D9",
+    "text_main": "#ECEDF5",
+    "text_sub": "#A3A3C2",
+    "text_dim": "#70708C",
+    "success": "#10B981",
+    "error": "#EF4444",
+    "delete_hover": "#DC2626",
+    "warning": "#F59E0B",
+    "input_bg": "#111125",
+    "border": "#1E1E3A",
+    "scrollbar_bg": "#0B0B14",
+    "scrollbar_grab": "#252548",
+    "log_bg": "#0D0D1A",
 }
