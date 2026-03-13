@@ -21,7 +21,8 @@ async def check_proxy(proxy_str: str, timeout: int = 10) -> tuple[bool, str]:
     proxy_url = proxy_config["server"]
     if "username" in proxy_config:
         scheme, rest = proxy_url.split("://", 1)
-        proxy_url = f"{scheme}://{proxy_config['username']}:{proxy_config.get('password', '')}@{rest}"
+        password = proxy_config.get("password", "")
+        proxy_url = f"{scheme}://{proxy_config['username']}:{password}@{rest}"
 
     try:
         timeout_obj = aiohttp.ClientTimeout(total=timeout)

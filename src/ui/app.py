@@ -2,30 +2,22 @@ import asyncio
 
 import flet as ft
 
-from ..config import COLORS
-from ..container import Container
+from ..core.container import Container
+from ..core.logging import get_logger
+from ..core.strings import get_string
 from ..interfaces.protocols import IBrowserLauncher, IProfileManager, IProxyService
-from ..logging_config import get_logger
-from ..strings import get_string
-from .actions import (
-    add_profile,
-    bulk_delete_profiles,
-    bulk_launch_profiles,
-    bulk_stop_profiles,
-    delete_profile,
-    edit_profile,
-    export_profile,
-    import_profile,
-    launch_or_stop,
+from .components import (
+    build_content_area,
+    build_empty_state,
+    build_profile_card,
+    build_sidebar,
+    build_ui_refs,
+    rebuild_bulk_bar,
 )
-from .bulk_bar import rebuild_bulk_bar
-from .dialogs import open_log_dialog
-from .profile_list import build_content_area, build_empty_state, build_profile_card
+from .handlers import AppHandlers
 from .refs import UIRefs
-from .sidebar import build_sidebar
 from .state import ITEMS_PER_PAGE, AppState
-from .theme import configure_page
-from .ui_factory import build_ui_refs
+from .theme import COLORS, configure_page
 
 logger = get_logger("app")
 
@@ -40,6 +32,18 @@ class App:
         self.page: ft.Page | None = None
         self._reconcile_started = False
         self.refs: UIRefs | None = None
+        c.event_bus.subscribe(self.state.schedule_refresh)
+        self.h = AppHandlers(
+            pm=self.pm,
+            bl=self.bl,
+            ps=self.ps,
+            state=self.state,
+            get_page=lambda: self.page,
+            get_refs=lambda: self.refs,
+            log_fn=self._log,
+            refresh_fn=self._refresh_profiles,
+            get_page_profiles=self._get_page_profiles,
+        )
 
     def run(self) -> None:
         ft.run(self._main)
@@ -52,7 +56,6 @@ class App:
         self.refs = build_ui_refs(
             pm=self.pm,
             on_change_page=self._change_page,
-            on_select=self._on_toggle_select,
             file_picker=fp,
         )
         page.add(self._build_root_layout(self.refs))
@@ -69,11 +72,11 @@ class App:
             r.log_text,
             r.log_column,
             r.log_toggle_btn,
-            on_new_profile=lambda _: self._open_add_dialog(),
-            on_import=self._on_import,
-            on_export=lambda _: self._on_export_open(),
-            on_toggle_log=lambda _: self._toggle_log(),
-            on_fullscreen_log=lambda _: self._open_log_fullscreen(),
+            on_new_profile=lambda _: self.h.open_add_dialog(),
+            on_import=self.h.on_import,
+            on_export=lambda _: self.h.on_export_open(),
+            on_toggle_log=lambda _: self.h.toggle_log(),
+            on_fullscreen_log=lambda _: self.h.open_log_fullscreen(),
         )
         content = build_content_area(
             r.content_subtitle,
@@ -93,7 +96,7 @@ class App:
             ],
         )
 
-    def _get_page_profiles(self):
+    def _get_page_profiles(self) -> tuple[list, list, int]:
         all_profiles = self.pm.list_profiles()
         total = max(1, (len(all_profiles) + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
         self.state.current_page = min(self.state.current_page, total)
@@ -117,28 +120,28 @@ class App:
                     p,
                     self.state.is_loading(p.name),
                     self.bl.is_running(p.name),
-                    self._on_launch,
-                    self._on_edit,
-                    self._on_delete,
+                    self.h.on_launch,
+                    self.h.on_edit,
+                    self.h.on_delete,
                     is_selected=self.state.is_selected(p.name),
-                    on_select=self._on_toggle_select,
+                    on_select=self.h.on_toggle_select,
                 )
                 for p in page_profiles
             ]
             if page_profiles
-            else [build_empty_state(lambda _: self._open_add_dialog())]
+            else [build_empty_state(lambda _: self.h.open_add_dialog())]
         )
         rebuild_bulk_bar(
             r.bulk_bar,
             self.state,
             page_profiles,
             {
-                "launch": self._on_bulk_launch,
-                "stop": self._on_bulk_stop,
-                "delete": self._on_bulk_delete,
-                "select_page": self._on_select_all_page,
-                "deselect_page": self._on_deselect_page,
-                "clear": self._on_clear_selection,
+                "launch": self.h.on_bulk_launch,
+                "stop": self.h.on_bulk_stop,
+                "delete": self.h.on_bulk_delete,
+                "select_page": self.h.on_select_all_page,
+                "deselect_page": self.h.on_deselect_page,
+                "clear": self.h.on_clear_selection,
             },
         )
         r.content_subtitle.value = self._profiles_subtitle()
@@ -190,22 +193,6 @@ class App:
                 bool(sidebar_lines) and not self.state.log_collapsed
             )
 
-    def _toggle_log(self) -> None:
-        assert self.refs is not None and self.page is not None
-        self.state.log_collapsed = not self.state.log_collapsed
-        has_content = bool(self.refs.log_text.value)
-        self.refs.log_column.visible = has_content and not self.state.log_collapsed
-        self.refs.log_toggle_btn.icon = (
-            ft.Icons.KEYBOARD_ARROW_RIGHT
-            if self.state.log_collapsed
-            else ft.Icons.KEYBOARD_ARROW_DOWN
-        )
-        self.page.update()
-
-    def _open_log_fullscreen(self) -> None:
-        assert self.page is not None
-        open_log_dialog(self.page, self.state.get_all_log_lines())
-
     def _safe_update(self) -> None:
         if not self.page:
             return
@@ -227,79 +214,3 @@ class App:
             except Exception as e:
                 logger.error("Error in UI reconcile loop: %s", e)
             await asyncio.sleep(0.12)
-
-    def _on_launch(self, name: str) -> None:
-        launch_or_stop(name, self.pm, self.bl, self.state, self._log)
-
-    def _on_delete(self, name: str) -> None:
-        assert self.page is not None
-        delete_profile(self.page, name, self.pm, self._log, self._refresh_profiles)
-
-    def _on_edit(self, name: str) -> None:
-        assert self.page is not None
-        edit_profile(
-            self.page,
-            name,
-            self.pm,
-            self.bl,
-            self.ps,
-            self._log,
-            self._refresh_profiles,
-        )
-
-    def _open_add_dialog(self) -> None:
-        assert self.page is not None
-        add_profile(self.page, self.pm, self.ps, self._log, self._refresh_profiles)
-
-    async def _on_import(self, _=None) -> None:
-        assert self.refs is not None
-        await import_profile(
-            self.refs.file_picker,
-            self.pm,
-            self._log,
-            self._refresh_profiles,
-        )
-
-    def _on_export_open(self) -> None:
-        assert self.page is not None and self.refs is not None
-        export_profile(self.page, self.refs.file_picker, self.pm, self._log)
-
-    def _on_toggle_select(self, name: str) -> None:
-        self.state.toggle_selection(name)
-        self.state.schedule_refresh()
-
-    def _on_select_all_page(self) -> None:
-        _, page_profiles, _ = self._get_page_profiles()
-        self.state.select_all([p.name for p in page_profiles])
-        self.state.schedule_refresh()
-
-    def _on_deselect_page(self) -> None:
-        _, page_profiles, _ = self._get_page_profiles()
-        for p in page_profiles:
-            if self.state.is_selected(p.name):
-                self.state.toggle_selection(p.name)
-        self.state.schedule_refresh()
-
-    def _on_clear_selection(self) -> None:
-        self.state.clear_selection()
-        self.state.schedule_refresh()
-
-    def _on_bulk_delete(self) -> None:
-        assert self.page is not None
-        if names := list(self.state.selected_names()):
-            bulk_delete_profiles(
-                self.page,
-                names,
-                self.pm,
-                self._log,
-                self._refresh_profiles,
-                on_done=self.state.clear_selection,
-            )
-
-    def _on_bulk_launch(self) -> None:
-        if names := list(self.state.selected_names()):
-            bulk_launch_profiles(names, self.pm, self.bl, self.state, self._log)
-
-    def _on_bulk_stop(self) -> None:
-        if names := list(self.state.selected_names()):
-            bulk_stop_profiles(names, self.pm, self.bl, self.state, self._log)

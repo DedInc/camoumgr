@@ -7,5 +7,5 @@ class Profile:
     proxy: str | None = None
     os_type: str = "windows"
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return asdict(self)
